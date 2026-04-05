@@ -1,4 +1,4 @@
-fron PIL import Image
+from PIL import Image
 import streamlit as st
 from docx import Document
 from docx.shared import Inches, Pt  # Pt(간격 조절용) 추가
