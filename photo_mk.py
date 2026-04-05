@@ -1,3 +1,4 @@
+fron PIL import Image
 import streamlit as st
 from docx import Document
 from docx.shared import Inches, Pt  # Pt(간격 조절용) 추가
@@ -67,16 +68,33 @@ def create_docx_content(mode="before"):
             row = table.add_row().cells
             paragraph = row[0].paragraphs[0]
             
-            # 사진 추가
+            # --- 이미지 압축 로직 추가 ---
+            # 1. 사용자가 올린 사진을 엽니다
+            img = Image.open(photo)
+            
+            # 2. 사진 방향(회전) 정보가 있으면 올바르게 잡아줍니다 (스마트폰 사진 뒤집힘 방지)
+            from PIL import ImageOps
+            img = ImageOps.exif_transpose(img)
+            
+            # 3. 사진의 해상도를 가로 1000픽셀 수준으로 줄입니다 (웹/문서용으로 충분함)
+            max_size = (1000, 1000)
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+            
+            # 4. 압축한 이미지를 임시 공간에 저장합니다
+            img_io = io.BytesIO()
+            # JPEG 형식으로 변환하여 저장 (투명 배경 있는 PNG 오류 방지)
+            if img.mode in ("RGBA", "P"): 
+                img = img.convert("RGB")
+            img.save(img_io, format='JPEG', quality=85) # quality 85면 화질은 좋고 용량은 확 줄어듦
+            img_io.seek(0)
+            
+            # 5. 압축된 이미지를 워드 문서에 넣습니다 (너비는 여전히 5.5인치 유지)
             run = paragraph.add_run()
-            run.add_picture(photo, width=Inches(5.5))
+            run.add_picture(img_io, width=Inches(5.5))
             
-            # --- 핵심: 사진 아래 간격 추가 ---
-            # 30pt 정도 띄우면 아주 보기 좋습니다. (필요에 따라 숫자 조절 가능)
+            # 여백 및 정렬
             paragraph.paragraph_format.space_after = Pt(35)
-            
-            # 사진 가운데 정렬 (선택 사항)
-            paragraph.alignment = 1 # 1은 가운데 정렬
+            paragraph.alignment = 1
             
     doc_io = io.BytesIO()
     doc.save(doc_io)
